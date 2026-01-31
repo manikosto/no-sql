@@ -135,7 +135,7 @@ export default function Home() {
       {/* App Interface */}
       <section className="px-6 pb-24">
         <div className="container mx-auto max-w-4xl">
-          <div className="rounded-2xl border border-border/50 bg-card/30 p-1 glow">
+          <div className="rounded-2xl border border-border/50 bg-card p-1 glow">
             {/* Window Chrome */}
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50">
               <div className="flex gap-1.5">

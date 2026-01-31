@@ -79,22 +79,96 @@
 
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, #a78bfa 0%, #818cf8 50%, #c084fc 100%);
+  background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 50%, #ec4899 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* Glow effect */
+/* Animated neon glow - Ambilight effect */
 .glow {
-  box-shadow: 0 0 60px -15px rgba(139, 92, 246, 0.3);
+  position: relative;
+  z-index: 1;
+}
+
+.glow::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  background: linear-gradient(
+    45deg,
+    #06b6d4,
+    #8b5cf6,
+    #ec4899,
+    #f59e0b,
+    #10b981,
+    #06b6d4
+  );
+  background-size: 300% 300%;
+  border-radius: 1rem;
+  filter: blur(35px);
+  opacity: 0.45;
+  z-index: -1;
+  animation: glow-rotate 6s ease-in-out infinite;
+}
+
+.glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: hsl(var(--card));
+  border-radius: inherit;
+  z-index: -1;
+}
+
+@keyframes glow-rotate {
+  0%, 100% {
+    background-position: 0% 50%;
+    filter: blur(40px);
+  }
+  25% {
+    background-position: 50% 0%;
+    filter: blur(45px);
+  }
+  50% {
+    background-position: 100% 50%;
+    filter: blur(40px);
+  }
+  75% {
+    background-position: 50% 100%;
+    filter: blur(45px);
+  }
 }
 
 /* Card glow on hover */
 .card-glow {
-  transition: box-shadow 0.3s ease;
+  position: relative;
+  transition: transform 0.3s ease;
+}
+
+.card-glow::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  background: linear-gradient(
+    45deg,
+    #06b6d4,
+    #8b5cf6,
+    #ec4899
+  );
+  background-size: 200% 200%;
+  border-radius: inherit;
+  filter: blur(15px);
+  opacity: 0;
+  z-index: -1;
+  transition: opacity 0.3s ease;
+  animation: glow-rotate 4s linear infinite;
+}
+
+.card-glow:hover::before {
+  opacity: 0.4;
 }
 
 .card-glow:hover {
-  box-shadow: 0 0 40px -10px rgba(139, 92, 246, 0.2);
+  transform: translateY(-2px);
 }
