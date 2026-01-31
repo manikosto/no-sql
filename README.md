@@ -1,4 +1,4 @@
-# HumanQL
+# HumanQL - Vibe Coded App
 
 Query your database using natural language. AI generates SQL, you get the data.
 
