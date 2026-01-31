@@ -10,7 +10,7 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { useLocale } from '@/lib/locale-context';
 import { DatabaseSchema, QueryResult } from '@/lib/types';
 import { DatabaseType } from '@/lib/db-adapter';
-import { Database, Link, MessageSquare, BarChart3, Plug, Sparkles, ShieldCheck, ShieldOff, Heart } from 'lucide-react';
+import { Database, Link, MessageSquare, BarChart3, Plug, Sparkles, ShieldCheck, ShieldOff, Heart, Github } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -88,6 +88,15 @@ export default function Home() {
             <span className="font-semibold">HumanQL</span>
           </div>
           <div className="flex items-center gap-3">
+            <a
+              href="https://github.com/manikosto/no-sql"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+              title="GitHub"
+            >
+              <Github className="w-5 h-5" />
+            </a>
             <a
               href="https://app.lava.top/aqa-proka4?tabId=donate"
               target="_blank"
