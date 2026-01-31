@@ -87,7 +87,18 @@ export default function Home() {
             </div>
             <span className="font-semibold">HumanQL</span>
           </div>
-          <LanguageSwitcher />
+          <div className="flex items-center gap-3">
+            <a
+              href="https://app.lava.top/aqa-proka4?tabId=donate"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-pink-500/10 text-pink-400 hover:bg-pink-500/20 transition-colors text-sm"
+            >
+              <Heart className="w-4 h-4" />
+              {locale === 'ru' ? 'Поддержать' : 'Donate'}
+            </a>
+            <LanguageSwitcher />
+          </div>
         </div>
       </header>
 
@@ -380,15 +391,6 @@ export default function Home() {
           <p className="text-sm text-muted-foreground">
             Powered by GPT-4o • {locale === 'ru' ? 'Ваши данные не сохраняются' : 'Your data is not stored'}
           </p>
-          <a
-            href="https://app.lava.top/aqa-proka4?tabId=donate"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-pink-500/10 text-pink-400 hover:bg-pink-500/20 transition-colors text-sm"
-          >
-            <Heart className="w-4 h-4" />
-            {locale === 'ru' ? 'Поддержать' : 'Donate'}
-          </a>
         </div>
       </footer>
     </div>
