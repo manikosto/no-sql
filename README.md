@@ -1,15 +1,15 @@
-# HumanQL - Vibe Coded App
+# HumanQL
 
 Query your database using natural language. AI generates SQL, you get the data.
 
 ## Features
 
 - PostgreSQL and MySQL support
-- Natural language to SQL (GPT-4o)
+- Natural language to SQL (GPT-4o or local LLM)
 - Read-only mode by default (optional write access)
 - Bilingual UI (English / Russian)
 - Export to CSV
-- Dark theme
+- Dark theme with neon ambilight
 
 ## Deploy to Railway
 
@@ -39,13 +39,36 @@ Open http://localhost:3000
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `OPENAI_API_KEY` | Your OpenAI API key |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OPENAI_API_KEY` | OpenAI API key | - |
+| `LLM_BASE_URL` | Custom LLM endpoint (for local models) | OpenAI |
+| `LLM_API_KEY` | API key for custom LLM | `OPENAI_API_KEY` |
+| `LLM_MODEL` | Model for SQL generation | `gpt-4o` |
+| `LLM_MODEL_FAST` | Model for summaries | `gpt-4o-mini` |
+
+## Using Local LLM (Ollama, LocalAI, etc.)
+
+You can use a local LLM instead of OpenAI for full privacy:
+
+```bash
+# .env.local
+LLM_BASE_URL=http://localhost:11434/v1
+LLM_API_KEY=not-needed
+LLM_MODEL=llama3.1
+LLM_MODEL_FAST=llama3.1
+```
+
+Compatible with any OpenAI-compatible API:
+- [Ollama](https://ollama.ai)
+- [LocalAI](https://localai.io)
+- [LM Studio](https://lmstudio.ai)
+- [vLLM](https://vllm.ai)
+- [text-generation-webui](https://github.com/oobabooga/text-generation-webui)
 
 ## Tech Stack
 
 - Next.js 14 (App Router)
 - Tailwind CSS + shadcn/ui
-- OpenAI GPT-4o
+- OpenAI GPT-4o (or compatible local LLM)
 - PostgreSQL (`pg`) / MySQL (`mysql2`)

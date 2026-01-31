@@ -2,9 +2,16 @@ import OpenAI from 'openai';
 import { DatabaseSchema } from './types';
 import { DatabaseType } from './db-adapter';
 
+// Support for local LLMs (Ollama, LocalAI, LM Studio, vLLM, etc.)
+// Set LLM_BASE_URL to use a custom endpoint (e.g., http://localhost:11434/v1)
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.LLM_API_KEY || process.env.OPENAI_API_KEY || 'not-needed',
+  baseURL: process.env.LLM_BASE_URL || undefined,
 });
+
+// Models can be configured via environment variables
+const MODEL_SQL = process.env.LLM_MODEL || 'gpt-4o';
+const MODEL_SUMMARY = process.env.LLM_MODEL_FAST || process.env.LLM_MODEL || 'gpt-4o-mini';
 
 export async function generateSQL(
   question: string,
@@ -43,7 +50,7 @@ ${schemaDescription}
 IMPORTANT: Before writing the query, verify every column name exists in the schema above. If "is_teacher", "role", "type", or any column is NOT in the schema - DO NOT USE IT.`;
 
   const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
+    model: MODEL_SQL,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: question },
@@ -111,7 +118,7 @@ Columns: ${columns.join(', ')}
 ${rowCount > 0 ? `Data:\n${sampleData}` : 'No data.'}`;
 
   const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+    model: MODEL_SUMMARY,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
