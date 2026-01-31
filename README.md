@@ -1,4 +1,4 @@
-# No-SQL
+# HumanQL
 
 Query your database using natural language. AI generates SQL, you get the data.
 

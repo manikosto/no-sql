@@ -2,7 +2,7 @@ export type Locale = 'en' | 'ru';
 
 export const translations = {
   en: {
-    title: 'No-SQL',
+    title: 'HumanQL',
     connectionPlaceholder: 'postgresql://user:password@host:5432/database',
     connect: 'Connect',
     connecting: 'Connecting...',
@@ -24,7 +24,7 @@ export const translations = {
     error: 'Error',
   },
   ru: {
-    title: 'No-SQL',
+    title: 'HumanQL',
     connectionPlaceholder: 'postgresql://user:password@host:5432/database',
     connect: 'Подключить',
     connecting: 'Подключение...',

@@ -85,7 +85,7 @@ export default function Home() {
             <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
               <Database className="w-4 h-4 text-primary" />
             </div>
-            <span className="font-semibold">No-SQL</span>
+            <span className="font-semibold">HumanQL</span>
           </div>
           <LanguageSwitcher />
         </div>
@@ -143,7 +143,7 @@ export default function Home() {
                 <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
                 <div className="w-3 h-3 rounded-full bg-green-500/80" />
               </div>
-              <span className="text-xs text-muted-foreground ml-2">no-sql.app</span>
+              <span className="text-xs text-muted-foreground ml-2">humanql.app</span>
             </div>
 
             {/* App Content */}
@@ -375,7 +375,7 @@ export default function Home() {
             <div className="w-6 h-6 rounded bg-primary/20 flex items-center justify-center">
               <Database className="w-3 h-3 text-primary" />
             </div>
-            <span className="text-sm text-muted-foreground">No-SQL</span>
+            <span className="text-sm text-muted-foreground">HumanQL</span>
           </div>
           <p className="text-sm text-muted-foreground">
             Powered by GPT-4o • {locale === 'ru' ? 'Ваши данные не сохраняются' : 'Your data is not stored'}

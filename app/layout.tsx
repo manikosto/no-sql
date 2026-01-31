@@ -8,7 +8,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "No-SQL",
+  title: "HumanQL",
   description: "Query your PostgreSQL database using natural language",
 };
 
