@@ -53,7 +53,7 @@ export default function Home() {
       const response = await fetch('/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connectionString, question, schema, dbType, readOnlyMode }),
+        body: JSON.stringify({ connectionString, question, schema, dbType, readOnlyMode, locale }),
       });
 
       const data = await response.json();

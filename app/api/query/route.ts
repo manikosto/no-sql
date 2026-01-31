@@ -6,7 +6,7 @@ import { DatabaseSchema } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
   try {
-    const { connectionString, question, schema, dbType, readOnlyMode = true } = await request.json();
+    const { connectionString, question, schema, dbType, readOnlyMode = true, locale = 'en' } = await request.json();
 
     if (!connectionString || !question || !schema || !dbType) {
       return NextResponse.json(
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       await adapter.disconnect();
 
       // Generate summary
-      const summary = await generateSummary(question, sql, rows, columns);
+      const summary = await generateSummary(question, sql, rows, columns, locale);
 
       return NextResponse.json({
         success: true,

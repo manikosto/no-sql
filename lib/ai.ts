@@ -72,7 +72,8 @@ export async function generateSummary(
   question: string,
   sql: string,
   results: Record<string, unknown>[],
-  columns: string[]
+  columns: string[],
+  locale: string = 'en'
 ): Promise<string> {
   const rowCount = results.length;
 
@@ -81,19 +82,33 @@ export async function generateSummary(
     columns.map(col => `${col}: ${row[col]}`).join(', ')
   ).join('\n');
 
-  const systemPrompt = `Ты аналитик данных. Кратко опиши результаты запроса на русском.
+  const systemPrompt = locale === 'ru'
+    ? `Ты аналитик данных. Кратко опиши результаты запроса на русском.
 
 Правила:
 - Максимум 1-2 предложения
 - Только факты: количество записей и ключевые данные
 - Без вводных фраз типа "В результате запроса..."
 - Без предложений помощи типа "Если нужно больше данных..."
-- Просто сухие факты`;
+- Просто сухие факты`
+    : `You are a data analyst. Briefly describe the query results in English.
 
-  const userPrompt = `Вопрос: "${question}"
+Rules:
+- Maximum 1-2 sentences
+- Only facts: number of records and key data
+- No introductory phrases like "The query returned..."
+- No offers of help like "If you need more data..."
+- Just dry facts`;
+
+  const userPrompt = locale === 'ru'
+    ? `Вопрос: "${question}"
 Найдено строк: ${rowCount}
 Колонки: ${columns.join(', ')}
-${rowCount > 0 ? `Данные:\n${sampleData}` : 'Данных нет.'}`;
+${rowCount > 0 ? `Данные:\n${sampleData}` : 'Данных нет.'}`
+    : `Question: "${question}"
+Rows found: ${rowCount}
+Columns: ${columns.join(', ')}
+${rowCount > 0 ? `Data:\n${sampleData}` : 'No data.'}`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -105,5 +120,6 @@ ${rowCount > 0 ? `Данные:\n${sampleData}` : 'Данных нет.'}`;
     max_tokens: 200,
   });
 
-  return response.choices[0]?.message?.content?.trim() || `Найдено ${rowCount} записей.`;
+  const fallback = locale === 'ru' ? `Найдено ${rowCount} записей.` : `Found ${rowCount} records.`;
+  return response.choices[0]?.message?.content?.trim() || fallback;
 }
