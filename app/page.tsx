@@ -10,7 +10,7 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { useLocale } from '@/lib/locale-context';
 import { DatabaseSchema, QueryResult } from '@/lib/types';
 import { DatabaseType } from '@/lib/db-adapter';
-import { Database, Link, MessageSquare, BarChart3, Plug, Sparkles, ShieldCheck, ShieldOff, Heart, Github } from 'lucide-react';
+import { Database, Link, MessageSquare, BarChart3, Plug, Sparkles, ShieldCheck, ShieldOff, Heart, Github, FlaskConical } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -141,12 +141,22 @@ export default function Home() {
           </p>
 
           {/* Security note */}
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground/70 max-w-xl mx-auto mb-12">
-            <ShieldCheck className="w-4 h-4 text-green-500" />
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground/70 max-w-xl mx-auto mb-4">
+            <ShieldCheck className="w-4 h-4 text-green-500 shrink-0" />
             <span>
               {locale === 'ru'
                 ? 'Мы проверяем уровень доступа и разрешаем только SELECT-запросы. Ваши данные в безопасности.'
                 : 'We verify access level and only allow SELECT queries. Your data is safe.'}
+            </span>
+          </div>
+
+          {/* Disclaimer */}
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground/50 max-w-xl mx-auto mb-12">
+            <FlaskConical className="w-4 h-4 text-yellow-500/70 shrink-0" />
+            <span>
+              {locale === 'ru'
+                ? 'Рекомендуется для pet-проектов и dev-окружений. Схема и часть данных передаются в OpenAI.'
+                : 'Recommended for pet projects and dev environments. Schema and some data is sent to OpenAI.'}
             </span>
           </div>
         </div>
