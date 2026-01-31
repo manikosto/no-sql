@@ -155,8 +155,8 @@ export default function Home() {
             <FlaskConical className="w-4 h-4 text-yellow-500/70 shrink-0" />
             <span>
               {locale === 'ru'
-                ? 'Рекомендуется для pet-проектов и dev-окружений. Схема и часть данных передаются в OpenAI.'
-                : 'Recommended for pet projects and dev environments. Schema and some data is sent to OpenAI.'}
+                ? 'Данные идут в OpenAI. Для приватности — разверните локально с Ollama.'
+                : 'Data goes to OpenAI. For privacy — self-host with Ollama.'}
             </span>
           </div>
         </div>
