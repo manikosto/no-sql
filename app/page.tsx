@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ConnectionForm } from '@/components/connection-form';
 import { QueryInput } from '@/components/query-input';
 import { SQLPreview } from '@/components/sql-preview';
@@ -10,7 +10,7 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { useLocale } from '@/lib/locale-context';
 import { DatabaseSchema, QueryResult } from '@/lib/types';
 import { DatabaseType } from '@/lib/db-adapter';
-import { Database, Link, MessageSquare, BarChart3, Plug, Sparkles, ShieldCheck, ShieldOff, Heart, Github, FlaskConical, EyeOff, Eye, FileText } from 'lucide-react';
+import { Database, Link, MessageSquare, BarChart3, Plug, Sparkles, ShieldCheck, ShieldOff, Heart, Github, FlaskConical, EyeOff, Eye, FileText, Server } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +35,15 @@ export default function Home() {
   const [readOnlyMode, setReadOnlyMode] = useState(true);
   const [privacyMode, setPrivacyMode] = useState(false);
   const [showPromptPreview, setShowPromptPreview] = useState(false);
+  const [isLocalLLM, setIsLocalLLM] = useState(false);
+
+  // Check if using local LLM
+  useEffect(() => {
+    fetch('/api/config')
+      .then(res => res.json())
+      .then(data => setIsLocalLLM(data.isLocalLLM))
+      .catch(() => {});
+  }, []);
 
   // Generate preview of what gets sent to AI
   const getPromptPreview = () => {
@@ -166,15 +175,26 @@ export default function Home() {
             </span>
           </div>
 
-          {/* Disclaimer */}
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground/50 max-w-xl mx-auto mb-12">
-            <FlaskConical className="w-4 h-4 text-yellow-500/70 shrink-0" />
-            <span>
-              {locale === 'ru'
-                ? 'Данные идут в OpenAI. Для приватности — разверните локально с Ollama.'
-                : 'Data goes to OpenAI. For privacy — self-host with Ollama.'}
-            </span>
-          </div>
+          {/* Disclaimer / Self-hosted badge */}
+          {isLocalLLM ? (
+            <div className="flex items-center justify-center gap-2 text-sm text-green-500 max-w-xl mx-auto mb-12">
+              <Server className="w-4 h-4 shrink-0" />
+              <span>
+                {locale === 'ru'
+                  ? 'Локальный режим — данные не покидают ваш сервер'
+                  : 'Self-hosted mode — data never leaves your server'}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground/50 max-w-xl mx-auto mb-12">
+              <FlaskConical className="w-4 h-4 text-yellow-500/70 shrink-0" />
+              <span>
+                {locale === 'ru'
+                  ? 'Данные идут в OpenAI. Для приватности — разверните локально с Ollama.'
+                  : 'Data goes to OpenAI. For privacy — self-host with Ollama.'}
+              </span>
+            </div>
+          )}
         </div>
       </section>
 
