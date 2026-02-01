@@ -10,7 +10,7 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { useLocale } from '@/lib/locale-context';
 import { DatabaseSchema, QueryResult } from '@/lib/types';
 import { DatabaseType } from '@/lib/db-adapter';
-import { Database, Link, MessageSquare, BarChart3, Plug, Sparkles, ShieldCheck, ShieldOff, Heart, Github, FlaskConical } from 'lucide-react';
+import { Database, Link, MessageSquare, BarChart3, Plug, Sparkles, ShieldCheck, ShieldOff, Heart, Github, FlaskConical, EyeOff, Eye } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +33,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [readOnlyMode, setReadOnlyMode] = useState(true);
+  const [privacyMode, setPrivacyMode] = useState(false);
 
   const handleConnect = (connStr: string, dbSchema: DatabaseSchema, readOnly: boolean, type: DatabaseType) => {
     setConnectionString(connStr);
@@ -53,7 +54,7 @@ export default function Home() {
       const response = await fetch('/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connectionString, question, schema, dbType, readOnlyMode, locale }),
+        body: JSON.stringify({ connectionString, question, schema, dbType, readOnlyMode, locale, privacyMode }),
       });
 
       const data = await response.json();
@@ -258,6 +259,43 @@ export default function Home() {
                 </div>
               )}
 
+              {/* Privacy mode toggle */}
+              {connectionString && (
+                <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30">
+                  <div className="flex items-center gap-3">
+                    {privacyMode ? (
+                      <EyeOff className="w-5 h-5 text-green-500" />
+                    ) : (
+                      <Eye className="w-5 h-5 text-muted-foreground" />
+                    )}
+                    <div>
+                      <p className="text-sm font-medium">
+                        {privacyMode
+                          ? (locale === 'ru' ? 'Режим приватности' : 'Privacy mode')
+                          : (locale === 'ru' ? 'Стандартный режим' : 'Standard mode')}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {privacyMode
+                          ? (locale === 'ru' ? 'В AI уходит только схема, данные не отправляются' : 'Only schema sent to AI, no data')
+                          : (locale === 'ru' ? 'Схема + 5 строк для саммари' : 'Schema + 5 rows for summary')}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setPrivacyMode(!privacyMode)}
+                    className={`text-sm px-4 py-2 rounded-lg transition-colors ${
+                      privacyMode
+                        ? 'bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/20'
+                        : 'bg-green-500/10 text-green-500 hover:bg-green-500/20'
+                    }`}
+                  >
+                    {privacyMode
+                      ? (locale === 'ru' ? 'Выключить' : 'Disable')
+                      : (locale === 'ru' ? 'Включить' : 'Enable')}
+                  </button>
+                </div>
+              )}
+
               {/* Error */}
               {error && (
                 <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
@@ -268,9 +306,11 @@ export default function Home() {
               {/* Results */}
               {queryResult && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
-                    <p className="text-sm">{queryResult.summary}</p>
-                  </div>
+                  {queryResult.summary && (
+                    <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                      <p className="text-sm">{queryResult.summary}</p>
+                    </div>
+                  )}
 
                   <SQLPreview sql={queryResult.sql} />
 
