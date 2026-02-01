@@ -10,7 +10,7 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { useLocale } from '@/lib/locale-context';
 import { DatabaseSchema, QueryResult } from '@/lib/types';
 import { DatabaseType } from '@/lib/db-adapter';
-import { Database, Link, MessageSquare, BarChart3, Plug, Sparkles, ShieldCheck, ShieldOff, Heart, Github, FlaskConical, EyeOff, Eye } from 'lucide-react';
+import { Database, Link, MessageSquare, BarChart3, Plug, Sparkles, ShieldCheck, ShieldOff, Heart, Github, FlaskConical, EyeOff, Eye, FileText } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +34,21 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [readOnlyMode, setReadOnlyMode] = useState(true);
   const [privacyMode, setPrivacyMode] = useState(false);
+  const [showPromptPreview, setShowPromptPreview] = useState(false);
+
+  // Generate preview of what gets sent to AI
+  const getPromptPreview = () => {
+    if (!schema) return '';
+    const schemaDescription = schema.tables
+      .map((table) => {
+        const columns = table.columns
+          .map((col) => `  - ${col.name} (${col.type})`)
+          .join('\n');
+        return `Table: ${table.name}\nColumns:\n${columns}`;
+      })
+      .join('\n\n');
+    return schemaDescription;
+  };
 
   const handleConnect = (connStr: string, dbSchema: DatabaseSchema, readOnly: boolean, type: DatabaseType) => {
     setConnectionString(connStr);
@@ -281,18 +296,78 @@ export default function Home() {
                       </p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setPrivacyMode(!privacyMode)}
-                    className={`text-sm px-4 py-2 rounded-lg transition-colors ${
-                      privacyMode
-                        ? 'bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/20'
-                        : 'bg-green-500/10 text-green-500 hover:bg-green-500/20'
-                    }`}
-                  >
-                    {privacyMode
-                      ? (locale === 'ru' ? 'Выключить' : 'Disable')
-                      : (locale === 'ru' ? 'Включить' : 'Enable')}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <AlertDialog open={showPromptPreview} onOpenChange={setShowPromptPreview}>
+                      <AlertDialogTrigger asChild>
+                        <button className="text-sm px-3 py-2 rounded-lg bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                          <FileText className="w-4 h-4" />
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="bg-card border-border max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="flex items-center gap-2">
+                            <FileText className="w-5 h-5 text-primary" />
+                            {locale === 'ru' ? 'Что отправляется в AI' : 'What is sent to AI'}
+                          </AlertDialogTitle>
+                          <AlertDialogDescription className="text-muted-foreground">
+                            {locale === 'ru'
+                              ? 'Это данные, которые уходят в LLM для генерации SQL'
+                              : 'This data is sent to the LLM to generate SQL'}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <div className="flex-1 overflow-auto">
+                          <div className="space-y-4">
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wide">
+                                {locale === 'ru' ? 'Схема базы данных' : 'Database Schema'}
+                              </p>
+                              <pre className="p-3 rounded-lg bg-secondary/50 text-xs font-mono overflow-x-auto whitespace-pre-wrap max-h-60">
+                                {getPromptPreview()}
+                              </pre>
+                            </div>
+                            {!privacyMode && (
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wide">
+                                  {locale === 'ru' ? 'Для саммари (первые 5 строк результата)' : 'For summary (first 5 result rows)'}
+                                </p>
+                                <p className="text-xs text-yellow-500">
+                                  {locale === 'ru'
+                                    ? '⚠️ Включите режим приватности, чтобы не отправлять данные'
+                                    : '⚠️ Enable privacy mode to not send data'}
+                                </p>
+                              </div>
+                            )}
+                            {privacyMode && (
+                              <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                                <p className="text-xs text-green-500">
+                                  {locale === 'ru'
+                                    ? '✓ Режим приватности включен — данные из БД не отправляются'
+                                    : '✓ Privacy mode enabled — no database data is sent'}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="bg-secondary hover:bg-secondary/80">
+                            {locale === 'ru' ? 'Закрыть' : 'Close'}
+                          </AlertDialogCancel>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    <button
+                      onClick={() => setPrivacyMode(!privacyMode)}
+                      className={`text-sm px-4 py-2 rounded-lg transition-colors ${
+                        privacyMode
+                          ? 'bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/20'
+                          : 'bg-green-500/10 text-green-500 hover:bg-green-500/20'
+                      }`}
+                    >
+                      {privacyMode
+                        ? (locale === 'ru' ? 'Выключить' : 'Disable')
+                        : (locale === 'ru' ? 'Включить' : 'Enable')}
+                    </button>
+                  </div>
                 </div>
               )}
 
