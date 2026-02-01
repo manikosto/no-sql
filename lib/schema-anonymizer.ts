@@ -37,12 +37,29 @@ export function anonymizeSchema(schema: DatabaseSchema): {
       return {
         name: anonymousColName,
         type: col.type, // Keep type for LLM to understand data structure
+        nullable: col.nullable,
+        isPrimaryKey: col.isPrimaryKey,
       };
     });
+
+    // Anonymize primary key column names
+    const anonymizedPrimaryKey = table.primaryKey?.map(
+      pk => map.columns[table.name][pk] || pk
+    );
+
+    // Anonymize foreign keys
+    const anonymizedForeignKeys = table.foreignKeys?.map(fk => ({
+      column: map.columns[table.name][fk.column] || fk.column,
+      referencesTable: map.tables[fk.referencesTable] || fk.referencesTable,
+      referencesColumn: map.columns[fk.referencesTable]?.[fk.referencesColumn] || fk.referencesColumn,
+    }));
 
     return {
       name: anonymousTableName,
       columns: anonymizedColumns,
+      primaryKey: anonymizedPrimaryKey,
+      foreignKeys: anonymizedForeignKeys,
+      rowCount: table.rowCount,
     };
   });
 
@@ -66,8 +83,7 @@ export function deanonymizeSQL(sql: string, map: AnonymizationMap): string {
   }
 
   // Replace column names for each table
-  for (const [anonymousTable, columns] of Object.entries(map.reverse.columns)) {
-    const realTable = map.reverse.tables[anonymousTable];
+  for (const [, columns] of Object.entries(map.reverse.columns)) {
     const sortedColumns = Object.entries(columns)
       .sort((a, b) => b[0].length - a[0].length);
 

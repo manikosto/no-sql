@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdapter, DatabaseType } from '@/lib/db-adapter';
-import { generateSQL, generateSummary } from '@/lib/ai';
+import { generateSQL, generateSummary, fixSQL } from '@/lib/ai';
 import { validateSQL, ensureLimit } from '@/lib/security';
 import { DatabaseSchema } from '@/lib/types';
 import { anonymizeSchema, deanonymizeSQL } from '@/lib/schema-anonymizer';
+
+const MAX_RETRY_ATTEMPTS = 2;
 
 // Demo data for testing without real database
 const demoData: Record<string, { rows: Record<string, unknown>[]; columns: string[] }> = {
@@ -52,6 +54,96 @@ const demoData: Record<string, { rows: Record<string, unknown>[]; columns: strin
 function executeDemoQuery(sql: string): { rows: Record<string, unknown>[]; columns: string[] } {
   const sqlLower = sql.toLowerCase();
 
+  // Handle JOIN queries
+  if (sqlLower.includes('join')) {
+    // Orders with user info
+    if (sqlLower.includes('orders') && sqlLower.includes('users')) {
+      const rows = demoData.orders.rows.map(order => {
+        const user = demoData.users.rows.find(u => u.id === order.user_id);
+        return {
+          order_id: order.id,
+          order_total: order.total,
+          order_status: order.status,
+          user_name: user?.name || 'Unknown',
+          user_email: user?.email || 'Unknown',
+        };
+      });
+      return {
+        columns: ['order_id', 'order_total', 'order_status', 'user_name', 'user_email'],
+        rows,
+      };
+    }
+
+    // Order items with product info
+    if (sqlLower.includes('order_items') && sqlLower.includes('products')) {
+      const rows = demoData.order_items.rows.map(item => {
+        const product = demoData.products.rows.find(p => p.id === item.product_id);
+        const order = demoData.orders.rows.find(o => o.id === item.order_id);
+        return {
+          order_id: item.order_id,
+          product_name: product?.name || 'Unknown',
+          quantity: item.quantity,
+          item_price: item.price,
+          order_status: order?.status || 'Unknown',
+        };
+      });
+      return {
+        columns: ['order_id', 'product_name', 'quantity', 'item_price', 'order_status'],
+        rows,
+      };
+    }
+  }
+
+  // Handle aggregate queries
+  if (sqlLower.includes('group by')) {
+    // Orders by status
+    if (sqlLower.includes('orders') && sqlLower.includes('status')) {
+      const statusGroups: Record<string, { count: number; total: number }> = {};
+      demoData.orders.rows.forEach(order => {
+        const status = order.status as string;
+        if (!statusGroups[status]) {
+          statusGroups[status] = { count: 0, total: 0 };
+        }
+        statusGroups[status].count++;
+        statusGroups[status].total += order.total as number;
+      });
+      const rows = Object.entries(statusGroups).map(([status, data]) => ({
+        status,
+        order_count: data.count,
+        total_amount: data.total,
+        avg_amount: Math.round(data.total / data.count * 100) / 100,
+      }));
+      return {
+        columns: ['status', 'order_count', 'total_amount', 'avg_amount'],
+        rows,
+      };
+    }
+
+    // Products by category
+    if (sqlLower.includes('products') && sqlLower.includes('category')) {
+      const categoryGroups: Record<string, { count: number; totalPrice: number; totalStock: number }> = {};
+      demoData.products.rows.forEach(product => {
+        const category = product.category as string;
+        if (!categoryGroups[category]) {
+          categoryGroups[category] = { count: 0, totalPrice: 0, totalStock: 0 };
+        }
+        categoryGroups[category].count++;
+        categoryGroups[category].totalPrice += product.price as number;
+        categoryGroups[category].totalStock += product.stock as number;
+      });
+      const rows = Object.entries(categoryGroups).map(([category, data]) => ({
+        category,
+        product_count: data.count,
+        total_stock: data.totalStock,
+        avg_price: Math.round(data.totalPrice / data.count * 100) / 100,
+      }));
+      return {
+        columns: ['category', 'product_count', 'total_stock', 'avg_price'],
+        rows,
+      };
+    }
+  }
+
   // Detect which table is being queried
   for (const table of Object.keys(demoData)) {
     if (sqlLower.includes(table)) {
@@ -67,9 +159,27 @@ function executeDemoQuery(sql: string): { rows: Record<string, unknown>[]; colum
       if (sqlLower.includes('sum(') && table === 'orders') {
         const total = demoData.orders.rows.reduce((sum, row) => sum + (row.total as number), 0);
         return {
-          columns: ['sum'],
-          rows: [{ sum: total }],
+          columns: ['total'],
+          rows: [{ total }],
         };
+      }
+
+      // Handle AVG queries
+      if (sqlLower.includes('avg(')) {
+        if (table === 'orders') {
+          const avg = demoData.orders.rows.reduce((sum, row) => sum + (row.total as number), 0) / demoData.orders.rows.length;
+          return {
+            columns: ['average'],
+            rows: [{ average: Math.round(avg * 100) / 100 }],
+          };
+        }
+        if (table === 'products') {
+          const avg = demoData.products.rows.reduce((sum, row) => sum + (row.price as number), 0) / demoData.products.rows.length;
+          return {
+            columns: ['average'],
+            rows: [{ average: Math.round(avg * 100) / 100 }],
+          };
+        }
       }
 
       // Return table data
@@ -135,6 +245,9 @@ export async function POST(request: NextRequest) {
 
     let rows: Record<string, unknown>[];
     let columns: string[];
+    let finalSQL = sql;
+    let retryCount = 0;
+    let wasRetried = false;
 
     if (isDemo) {
       // Demo mode: use fake data
@@ -142,17 +255,61 @@ export async function POST(request: NextRequest) {
       rows = result.rows;
       columns = result.columns;
     } else {
-      // Real database: execute query
+      // Real database: execute query with retry logic
       // Use DATABASE_URL from env if connectionString is 'env'
       const connStr = connectionString === 'env' ? process.env.DATABASE_URL! : connectionString;
       const adapter = createAdapter(dbType as DatabaseType, connStr);
 
       try {
         await adapter.connect();
-        const result = await adapter.executeQuery(sql, 10000);
-        rows = result.rows;
-        columns = result.columns;
+
+        // Try to execute, with retry on failure
+        let lastError: Error | null = null;
+
+        while (retryCount <= MAX_RETRY_ATTEMPTS) {
+          try {
+            const result = await adapter.executeQuery(finalSQL, 10000);
+            rows = result.rows;
+            columns = result.columns;
+            lastError = null;
+            break;
+          } catch (error) {
+            lastError = error instanceof Error ? error : new Error(String(error));
+
+            if (retryCount < MAX_RETRY_ATTEMPTS) {
+              // Try to fix the query
+              console.log(`Query failed (attempt ${retryCount + 1}), trying to fix: ${lastError.message}`);
+
+              let fixedSQL = await fixSQL(
+                question,
+                finalSQL,
+                lastError.message,
+                schemaForAI,
+                dbType as DatabaseType
+              );
+
+              // Deanonymize if needed
+              if (anonymizeMode && anonymizationMap) {
+                fixedSQL = deanonymizeSQL(fixedSQL, anonymizationMap);
+              }
+
+              // Validate fixed SQL
+              const fixValidation = validateSQL(fixedSQL, readOnlyMode);
+              if (fixValidation.valid) {
+                finalSQL = ensureLimit(fixedSQL, 100);
+                wasRetried = true;
+              }
+            }
+            retryCount++;
+          }
+        }
+
         await adapter.disconnect();
+
+        // If all retries failed, throw the last error
+        if (lastError) {
+          throw lastError;
+        }
       } catch (error) {
         await adapter.disconnect().catch(() => {});
         throw error;
@@ -160,15 +317,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate summary (skip in privacy mode)
-    const summary = privacyMode ? null : await generateSummary(question, sql, rows, columns, locale);
+    const summary = privacyMode ? null : await generateSummary(question, finalSQL, rows!, columns!, locale);
 
     return NextResponse.json({
       success: true,
-      sql,
-      results: rows,
-      columns,
+      sql: finalSQL,
+      results: rows!,
+      columns: columns!,
       summary,
       isDemo,
+      wasRetried,
     });
   } catch (error) {
     console.error('Query error:', error);

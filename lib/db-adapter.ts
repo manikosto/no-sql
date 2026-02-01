@@ -1,6 +1,6 @@
 import { Pool as PgPool } from 'pg';
 import mysql from 'mysql2/promise';
-import { DatabaseSchema, TableSchema } from './types';
+import { DatabaseSchema, TableSchema, ForeignKey } from './types';
 
 export type DatabaseType = 'postgresql' | 'mysql';
 
@@ -52,21 +52,77 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     const tables: TableSchema[] = [];
 
     for (const row of tablesResult.rows) {
+      // Get columns with more metadata
       const columnsResult = await this.pool.query(
-        `SELECT column_name, data_type
-         FROM information_schema.columns
-         WHERE table_schema = 'public'
-           AND table_name = $1
-         ORDER BY ordinal_position;`,
+        `SELECT
+           c.column_name,
+           c.data_type,
+           c.is_nullable,
+           c.column_default,
+           CASE WHEN pk.column_name IS NOT NULL THEN true ELSE false END as is_primary_key
+         FROM information_schema.columns c
+         LEFT JOIN (
+           SELECT kcu.column_name
+           FROM information_schema.table_constraints tc
+           JOIN information_schema.key_column_usage kcu
+             ON tc.constraint_name = kcu.constraint_name
+           WHERE tc.table_schema = 'public'
+             AND tc.table_name = $1
+             AND tc.constraint_type = 'PRIMARY KEY'
+         ) pk ON c.column_name = pk.column_name
+         WHERE c.table_schema = 'public'
+           AND c.table_name = $1
+         ORDER BY c.ordinal_position;`,
         [row.table_name]
       );
+
+      // Get foreign keys
+      const fkResult = await this.pool.query(
+        `SELECT
+           kcu.column_name,
+           ccu.table_name AS references_table,
+           ccu.column_name AS references_column
+         FROM information_schema.table_constraints tc
+         JOIN information_schema.key_column_usage kcu
+           ON tc.constraint_name = kcu.constraint_name
+         JOIN information_schema.constraint_column_usage ccu
+           ON tc.constraint_name = ccu.constraint_name
+         WHERE tc.table_schema = 'public'
+           AND tc.table_name = $1
+           AND tc.constraint_type = 'FOREIGN KEY';`,
+        [row.table_name]
+      );
+
+      // Get approximate row count (fast, doesn't lock table)
+      const countResult = await this.pool.query(
+        `SELECT reltuples::bigint AS estimate
+         FROM pg_class
+         WHERE relname = $1;`,
+        [row.table_name]
+      );
+
+      const foreignKeys: ForeignKey[] = fkResult.rows.map((fk) => ({
+        column: fk.column_name,
+        referencesTable: fk.references_table,
+        referencesColumn: fk.references_column,
+      }));
+
+      const primaryKeys = columnsResult.rows
+        .filter((col) => col.is_primary_key)
+        .map((col) => col.column_name);
 
       tables.push({
         name: row.table_name,
         columns: columnsResult.rows.map((col) => ({
           name: col.column_name,
           type: col.data_type,
+          nullable: col.is_nullable === 'YES',
+          isPrimaryKey: col.is_primary_key,
+          defaultValue: col.column_default,
         })),
+        primaryKey: primaryKeys.length > 0 ? primaryKeys : undefined,
+        foreignKeys: foreignKeys.length > 0 ? foreignKeys : undefined,
+        rowCount: countResult.rows[0]?.estimate ?? undefined,
       });
     }
 
@@ -152,21 +208,67 @@ export class MySQLAdapter implements DatabaseAdapter {
     const tables: TableSchema[] = [];
 
     for (const row of tablesRows) {
+      const tableName = row.table_name || row.TABLE_NAME;
+
+      // Get columns with more metadata
       const [columnsRows] = await this.connection.query<mysql.RowDataPacket[]>(
-        `SELECT column_name, data_type
+        `SELECT
+           column_name,
+           data_type,
+           is_nullable,
+           column_default,
+           column_key
          FROM information_schema.columns
          WHERE table_schema = ?
            AND table_name = ?
          ORDER BY ordinal_position;`,
-        [this.database, row.table_name]
+        [this.database, tableName]
       );
 
+      // Get foreign keys
+      const [fkRows] = await this.connection.query<mysql.RowDataPacket[]>(
+        `SELECT
+           column_name,
+           referenced_table_name,
+           referenced_column_name
+         FROM information_schema.key_column_usage
+         WHERE table_schema = ?
+           AND table_name = ?
+           AND referenced_table_name IS NOT NULL;`,
+        [this.database, tableName]
+      );
+
+      // Get approximate row count
+      const [countRows] = await this.connection.query<mysql.RowDataPacket[]>(
+        `SELECT table_rows
+         FROM information_schema.tables
+         WHERE table_schema = ?
+           AND table_name = ?;`,
+        [this.database, tableName]
+      );
+
+      const foreignKeys: ForeignKey[] = fkRows.map((fk) => ({
+        column: fk.column_name || fk.COLUMN_NAME,
+        referencesTable: fk.referenced_table_name || fk.REFERENCED_TABLE_NAME,
+        referencesColumn: fk.referenced_column_name || fk.REFERENCED_COLUMN_NAME,
+      }));
+
+      const primaryKeys = columnsRows
+        .filter((col) => (col.column_key || col.COLUMN_KEY) === 'PRI')
+        .map((col) => col.column_name || col.COLUMN_NAME);
+
       tables.push({
-        name: row.table_name,
+        name: tableName,
         columns: columnsRows.map((col) => ({
           name: col.column_name || col.COLUMN_NAME,
           type: col.data_type || col.DATA_TYPE,
+          nullable: (col.is_nullable || col.IS_NULLABLE) === 'YES',
+          isPrimaryKey: (col.column_key || col.COLUMN_KEY) === 'PRI',
+          defaultValue: col.column_default || col.COLUMN_DEFAULT,
         })),
+        primaryKey: primaryKeys.length > 0 ? primaryKeys : undefined,
+        foreignKeys: foreignKeys.length > 0 ? foreignKeys : undefined,
+        rowCount: countRows[0]?.table_rows ?? countRows[0]?.TABLE_ROWS ?? undefined,
       });
     }
 

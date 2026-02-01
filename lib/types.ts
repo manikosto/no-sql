@@ -1,11 +1,23 @@
 export interface TableColumn {
   name: string;
   type: string;
+  nullable?: boolean;
+  isPrimaryKey?: boolean;
+  defaultValue?: string | null;
+}
+
+export interface ForeignKey {
+  column: string;
+  referencesTable: string;
+  referencesColumn: string;
 }
 
 export interface TableSchema {
   name: string;
   columns: TableColumn[];
+  primaryKey?: string[];
+  foreignKeys?: ForeignKey[];
+  rowCount?: number;
 }
 
 export interface DatabaseSchema {
