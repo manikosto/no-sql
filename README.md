@@ -10,6 +10,21 @@ Query your database using natural language. AI generates SQL, you get the data.
 - Bilingual UI (English / Russian)
 - Export to CSV
 - Dark theme with neon ambilight
+- Demo mode to try without your own database
+
+### SQL Generation
+
+- **Smart JOINs**: Detects foreign keys and infers relationships from naming conventions
+- **Full SQL support**: SELECT with JOIN, WHERE, GROUP BY, HAVING, ORDER BY, subqueries, CTEs
+- **Dialect-aware**: PostgreSQL (ILIKE, INTERVAL) vs MySQL (backticks, DATE_SUB)
+- **Auto-retry**: If query fails, AI attempts to fix it automatically
+- **Few-shot learning**: Built-in examples for aggregations, date filters, text search
+
+### Privacy Options
+
+- **Privacy Mode**: Disable AI summaries (data stays local)
+- **Schema Anonymization**: Send generic names to LLM (table_1, col_1)
+- **Local LLM**: Full offline mode with Ollama/LocalAI
 
 ## Deploy to Railway
 
