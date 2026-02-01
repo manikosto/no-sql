@@ -13,6 +13,16 @@ const openai = new OpenAI({
 const MODEL_SQL = process.env.LLM_MODEL || 'gpt-4o';
 const MODEL_SUMMARY = process.env.LLM_MODEL_FAST || process.env.LLM_MODEL || 'gpt-4o-mini';
 
+// Build a compact schema representation - just table.column list
+function buildCompactSchema(schema: DatabaseSchema): string {
+  const lines: string[] = [];
+  for (const table of schema.tables) {
+    const cols = table.columns.map(c => c.name).join(', ');
+    lines.push(`${table.name}: ${cols}`);
+  }
+  return lines.join('\n');
+}
+
 // Build rich schema description with relationships
 function buildSchemaDescription(schema: DatabaseSchema): string {
   const parts: string[] = [];
@@ -20,22 +30,11 @@ function buildSchemaDescription(schema: DatabaseSchema): string {
   for (const table of schema.tables) {
     const lines: string[] = [`TABLE: ${table.name}`];
 
-    // Add row count hint if available
-    if (table.rowCount !== undefined && table.rowCount > 0) {
-      lines[0] += ` (~${table.rowCount.toLocaleString()} rows)`;
-    }
-
-    // Primary key
-    if (table.primaryKey && table.primaryKey.length > 0) {
-      lines.push(`  PRIMARY KEY: ${table.primaryKey.join(', ')}`);
-    }
-
-    // Columns with types
-    lines.push('  COLUMNS:');
+    // Columns with types - ONLY show what exists
+    lines.push('  COLUMNS (ONLY THESE EXIST):');
     for (const col of table.columns) {
       let colDesc = `    - ${col.name}: ${col.type}`;
       if (col.isPrimaryKey) colDesc += ' [PK]';
-      if (col.nullable === false) colDesc += ' [NOT NULL]';
       lines.push(colDesc);
     }
 
@@ -68,9 +67,9 @@ function inferRelationships(schema: DatabaseSchema): string[] {
         const pluralTable = potentialTable + 's';
 
         if (tableNames.has(potentialTable)) {
-          hints.push(`${table.name}.${col.name} likely references ${potentialTable}.id`);
+          hints.push(`${table.name}.${col.name} -> ${potentialTable}.id`);
         } else if (tableNames.has(pluralTable)) {
-          hints.push(`${table.name}.${col.name} likely references ${pluralTable}.id`);
+          hints.push(`${table.name}.${col.name} -> ${pluralTable}.id`);
         }
       }
     }
@@ -79,76 +78,12 @@ function inferRelationships(schema: DatabaseSchema): string[] {
   return hints;
 }
 
-// Few-shot examples for common query patterns
-const FEW_SHOT_EXAMPLES = `
-EXAMPLES of good queries:
-
-Q: "How many users are there?"
-A: SELECT COUNT(*) FROM users;
-
-Q: "Show top 10 customers by order value"
-A: SELECT c.id, c.name, SUM(o.total) as total_spent
-   FROM customers c
-   JOIN orders o ON c.id = o.customer_id
-   GROUP BY c.id, c.name
-   ORDER BY total_spent DESC
-   LIMIT 10;
-
-Q: "Users who registered last month"
-A: SELECT * FROM users
-   WHERE created_at >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month')
-     AND created_at < DATE_TRUNC('month', CURRENT_DATE)
-   LIMIT 100;
-
-Q: "Orders with product details"
-A: SELECT o.id, o.total, o.status, p.name as product_name, oi.quantity
-   FROM orders o
-   JOIN order_items oi ON o.id = oi.order_id
-   JOIN products p ON oi.product_id = p.id
-   LIMIT 100;
-
-Q: "Average order value by status"
-A: SELECT status, AVG(total) as avg_total, COUNT(*) as order_count
-   FROM orders
-   GROUP BY status
-   ORDER BY avg_total DESC;
-
-Q: "Products that have never been ordered"
-A: SELECT p.*
-   FROM products p
-   LEFT JOIN order_items oi ON p.id = oi.product_id
-   WHERE oi.id IS NULL
-   LIMIT 100;
-
-Q: "Search users by name"
-A: SELECT * FROM users
-   WHERE name ILIKE '%search_term%'
-   LIMIT 100;
-`;
-
 // Dialect-specific tips
 function getDialectTips(dbType: DatabaseType): string {
   if (dbType === 'mysql') {
-    return `
-MySQL SYNTAX TIPS:
-- Use backticks for identifiers: \`table_name\`
-- String concatenation: CONCAT(a, b)
-- Case-insensitive LIKE is default
-- Date functions: DATE_SUB(NOW(), INTERVAL 1 MONTH), CURDATE()
-- LIMIT goes at the end: LIMIT 100
-- Use IFNULL() for null handling
-- Boolean: 1/0 or TRUE/FALSE`;
+    return `MySQL: backticks for identifiers, IFNULL(), DATE_SUB(NOW(), INTERVAL 1 MONTH)`;
   }
-
-  return `
-PostgreSQL SYNTAX TIPS:
-- Use double quotes for identifiers if needed: "table_name"
-- String concatenation: || operator or CONCAT()
-- Use ILIKE for case-insensitive matching
-- Date functions: NOW() - INTERVAL '1 month', CURRENT_DATE
-- LIMIT goes at the end: LIMIT 100
-- Use COALESCE() for null handling
-- Boolean: true/false`;
+  return `PostgreSQL: ILIKE for case-insensitive, COALESCE(), NOW() - INTERVAL '1 month'`;
 }
 
 export async function generateSQL(
@@ -158,42 +93,46 @@ export async function generateSQL(
   readOnlyMode: boolean = true
 ): Promise<string> {
   const schemaDescription = buildSchemaDescription(schema);
+  const compactSchema = buildCompactSchema(schema);
   const inferredRelations = inferRelationships(schema);
   const dialectTips = getDialectTips(dbType);
 
   const queryRules = readOnlyMode
-    ? `ALLOWED: SELECT (with JOIN, WHERE, GROUP BY, HAVING, ORDER BY, subqueries, UNION, CTEs)
-FORBIDDEN: INSERT, UPDATE, DELETE, DROP, TRUNCATE, ALTER, CREATE, GRANT`
-    : `ALLOWED: SELECT, INSERT, UPDATE, DELETE
-FORBIDDEN: DROP, TRUNCATE, ALTER, CREATE, GRANT, REVOKE`;
+    ? 'Only SELECT allowed. No INSERT/UPDATE/DELETE.'
+    : 'SELECT, INSERT, UPDATE, DELETE allowed. No DROP/TRUNCATE/ALTER.';
 
-  const systemPrompt = `You are an expert ${dbType.toUpperCase()} query generator. Your task is to convert natural language questions into precise, efficient SQL queries.
+  // Very strict prompt focused on not inventing columns
+  const systemPrompt = `You are a ${dbType.toUpperCase()} SQL generator. Convert questions to SQL.
 
-STRICT RULES:
-1. ONLY use tables and columns that exist in the schema below
-2. NEVER invent or guess column names - if unsure, use SELECT * or COUNT(*)
-3. ${queryRules}
-4. Always add LIMIT 100 to SELECT queries (unless aggregating or user specifies otherwise)
-5. Return ONLY the raw SQL query - no markdown, no backticks, no explanations
-6. Prefer explicit JOINs over implicit (comma) joins
-7. Use table aliases for readability in multi-table queries
-8. For text search, use ILIKE (PostgreSQL) or LIKE (MySQL) with wildcards
+CRITICAL RULES - VIOLATION CAUSES ERRORS:
+1. USE ONLY COLUMNS FROM THE SCHEMA BELOW. Do NOT invent columns.
+2. If you're unsure which column to use, use COUNT(*) or SELECT * instead of guessing.
+3. Before writing any column name, verify it exists in the schema.
+4. ${queryRules}
+5. Add LIMIT 100 to non-aggregate SELECT queries.
+6. Return ONLY raw SQL. No markdown, no backticks, no explanation.
 
 ${dialectTips}
 
-DATABASE SCHEMA:
+=== VALID TABLES AND COLUMNS (USE ONLY THESE) ===
+${compactSchema}
+
+=== DETAILED SCHEMA ===
 ${schemaDescription}
-${inferredRelations.length > 0 ? `\nINFERRED RELATIONSHIPS:\n${inferredRelations.map(r => '- ' + r).join('\n')}` : ''}
+${inferredRelations.length > 0 ? `\nRELATIONSHIPS:\n${inferredRelations.join('\n')}` : ''}
 
-${FEW_SHOT_EXAMPLES}
+EXAMPLES:
+Q: "How many users?" → SELECT COUNT(*) FROM user;
+Q: "Show all orders" → SELECT * FROM orders LIMIT 100;
+Q: "Users with their orders" → SELECT u.*, o.* FROM user u JOIN orders o ON u.id = o.user_id LIMIT 100;
 
-Now generate a query for the user's question. Double-check that every table and column exists in the schema above.`;
+REMEMBER: If a column doesn't appear in the schema above, DO NOT USE IT. Use * or COUNT(*) instead.`;
 
   const response = await openai.chat.completions.create({
     model: MODEL_SQL,
     messages: [
       { role: 'system', content: systemPrompt },
-      { role: 'user', content: question },
+      { role: 'user', content: `Question: ${question}\n\nGenerate SQL using ONLY columns from the schema. If unsure, use SELECT * or COUNT(*).` },
     ],
     temperature: 0,
     max_tokens: 1000,
@@ -215,7 +154,7 @@ Now generate a query for the user's question. Double-check that every table and 
   return cleanSQL.trim();
 }
 
-// Attempt to fix a failed SQL query
+// Attempt to fix a failed SQL query with explicit error context
 export async function fixSQL(
   originalQuestion: string,
   failedSQL: string,
@@ -223,18 +162,45 @@ export async function fixSQL(
   schema: DatabaseSchema,
   dbType: DatabaseType
 ): Promise<string> {
-  const schemaDescription = buildSchemaDescription(schema);
+  const compactSchema = buildCompactSchema(schema);
 
-  const systemPrompt = `You are an expert ${dbType.toUpperCase()} query debugger. A SQL query failed and you need to fix it.
+  // Extract which column was invalid from error message
+  const columnMatch = errorMessage.match(/column "([^"]+)" does not exist/i) ||
+                      errorMessage.match(/Unknown column '([^']+)'/i);
+  const invalidColumn = columnMatch ? columnMatch[1] : null;
 
-SCHEMA:
-${schemaDescription}
+  // Find which table might be relevant based on the failed SQL
+  const relevantTables: string[] = [];
+  for (const table of schema.tables) {
+    if (failedSQL.toLowerCase().includes(table.name.toLowerCase())) {
+      relevantTables.push(table.name);
+    }
+  }
+
+  // Build specific guidance about valid columns for relevant tables
+  let columnGuidance = '';
+  if (relevantTables.length > 0) {
+    const tableInfo = relevantTables.map(tableName => {
+      const table = schema.tables.find(t => t.name === tableName);
+      if (table) {
+        return `${tableName} has ONLY these columns: ${table.columns.map(c => c.name).join(', ')}`;
+      }
+      return '';
+    }).filter(Boolean);
+    columnGuidance = `\n\nVALID COLUMNS FOR TABLES IN YOUR QUERY:\n${tableInfo.join('\n')}`;
+  }
+
+  const systemPrompt = `Fix this SQL error. The query used a column that doesn't exist.
+
+VALID TABLES AND COLUMNS:
+${compactSchema}
+${columnGuidance}
 
 RULES:
-1. Fix the error while maintaining the original intent
-2. ONLY use tables and columns from the schema above
-3. Return ONLY the corrected SQL - no explanations
-4. Add LIMIT 100 if missing`;
+1. Remove or replace the invalid column with one that EXISTS in the schema
+2. If you can't find a matching column, use COUNT(*) or SELECT *
+3. Return ONLY the fixed SQL - no explanations
+4. The column "${invalidColumn}" does NOT exist - don't use it`;
 
   const userPrompt = `Original question: "${originalQuestion}"
 
@@ -243,7 +209,7 @@ ${failedSQL}
 
 Error: ${errorMessage}
 
-Please fix this query.`;
+Fix by using ONLY columns that exist in the schema above.`;
 
   const response = await openai.chat.completions.create({
     model: MODEL_SQL,
