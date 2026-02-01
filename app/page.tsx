@@ -10,7 +10,7 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { useLocale } from '@/lib/locale-context';
 import { DatabaseSchema, QueryResult } from '@/lib/types';
 import { DatabaseType } from '@/lib/db-adapter';
-import { Database, Link, MessageSquare, BarChart3, Plug, Sparkles, ShieldCheck, ShieldOff, Heart, Github, FlaskConical, EyeOff, Eye, FileText, Server } from 'lucide-react';
+import { Database, Link, MessageSquare, BarChart3, Plug, Sparkles, ShieldCheck, ShieldOff, Heart, Github, FlaskConical, EyeOff, Eye, FileText, Server, Fingerprint } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +34,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [readOnlyMode, setReadOnlyMode] = useState(true);
   const [privacyMode, setPrivacyMode] = useState(false);
+  const [anonymizeMode, setAnonymizeMode] = useState(false);
   const [showPromptPreview, setShowPromptPreview] = useState(false);
   const [isLocalLLM, setIsLocalLLM] = useState(false);
 
@@ -48,7 +49,18 @@ export default function Home() {
   // Generate preview of what gets sent to AI
   const getPromptPreview = () => {
     if (!schema) return '';
-    const schemaDescription = schema.tables
+
+    const schemaToShow = anonymizeMode
+      ? schema.tables.map((table, ti) => ({
+          name: `table_${ti + 1}`,
+          columns: table.columns.map((col, ci) => ({
+            name: `col_${ci + 1}`,
+            type: col.type,
+          })),
+        }))
+      : schema.tables;
+
+    const schemaDescription = schemaToShow
       .map((table) => {
         const columns = table.columns
           .map((col) => `  - ${col.name} (${col.type})`)
@@ -78,7 +90,7 @@ export default function Home() {
       const response = await fetch('/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connectionString, question, schema, dbType, readOnlyMode, locale, privacyMode }),
+        body: JSON.stringify({ connectionString, question, schema, dbType, readOnlyMode, locale, privacyMode, anonymizeMode }),
       });
 
       const data = await response.json();
@@ -388,6 +400,39 @@ export default function Home() {
                         : (locale === 'ru' ? 'Включить' : 'Enable')}
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* Anonymize mode toggle */}
+              {connectionString && (
+                <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30">
+                  <div className="flex items-center gap-3">
+                    <Fingerprint className={`w-5 h-5 ${anonymizeMode ? 'text-green-500' : 'text-muted-foreground'}`} />
+                    <div>
+                      <p className="text-sm font-medium">
+                        {anonymizeMode
+                          ? (locale === 'ru' ? 'Анонимизация схемы' : 'Schema anonymization')
+                          : (locale === 'ru' ? 'Реальные имена' : 'Real names')}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {anonymizeMode
+                          ? (locale === 'ru' ? 'users → table_1, email → col_3' : 'users → table_1, email → col_3')
+                          : (locale === 'ru' ? 'AI видит реальные названия таблиц' : 'AI sees real table names')}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setAnonymizeMode(!anonymizeMode)}
+                    className={`text-sm px-4 py-2 rounded-lg transition-colors ${
+                      anonymizeMode
+                        ? 'bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/20'
+                        : 'bg-green-500/10 text-green-500 hover:bg-green-500/20'
+                    }`}
+                  >
+                    {anonymizeMode
+                      ? (locale === 'ru' ? 'Выключить' : 'Disable')
+                      : (locale === 'ru' ? 'Включить' : 'Enable')}
+                  </button>
                 </div>
               )}
 

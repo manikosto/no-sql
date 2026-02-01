@@ -3,10 +3,20 @@ import { createAdapter, DatabaseType } from '@/lib/db-adapter';
 import { generateSQL, generateSummary } from '@/lib/ai';
 import { validateSQL, ensureLimit } from '@/lib/security';
 import { DatabaseSchema } from '@/lib/types';
+import { anonymizeSchema, deanonymizeSQL } from '@/lib/schema-anonymizer';
 
 export async function POST(request: NextRequest) {
   try {
-    const { connectionString, question, schema, dbType, readOnlyMode = true, locale = 'en', privacyMode = false } = await request.json();
+    const {
+      connectionString,
+      question,
+      schema,
+      dbType,
+      readOnlyMode = true,
+      locale = 'en',
+      privacyMode = false,
+      anonymizeMode = false
+    } = await request.json();
 
     if (!connectionString || !question || !schema || !dbType) {
       return NextResponse.json(
@@ -15,8 +25,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate SQL using AI
-    let sql = await generateSQL(question, schema as DatabaseSchema, dbType as DatabaseType, readOnlyMode);
+    // Anonymize schema if enabled
+    let schemaForAI = schema as DatabaseSchema;
+    let anonymizationMap = null;
+
+    if (anonymizeMode) {
+      const { anonymizedSchema, map } = anonymizeSchema(schema as DatabaseSchema);
+      schemaForAI = anonymizedSchema;
+      anonymizationMap = map;
+    }
+
+    // Generate SQL using AI (with anonymized or real schema)
+    let sql = await generateSQL(question, schemaForAI, dbType as DatabaseType, readOnlyMode);
+
+    // Deanonymize SQL if we used anonymization
+    if (anonymizeMode && anonymizationMap) {
+      sql = deanonymizeSQL(sql, anonymizationMap);
+    }
 
     // Validate SQL for security
     const validation = validateSQL(sql, readOnlyMode);
