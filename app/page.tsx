@@ -10,7 +10,8 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { useLocale } from '@/lib/locale-context';
 import { DatabaseSchema, QueryResult } from '@/lib/types';
 import { DatabaseType } from '@/lib/db-adapter';
-import { Database, Link, MessageSquare, BarChart3, Plug, Sparkles, ShieldCheck, ShieldOff, Heart, Github, FlaskConical, EyeOff, Eye, FileText, Server, Fingerprint } from 'lucide-react';
+import { Database, Link, MessageSquare, BarChart3, Plug, Sparkles, ShieldCheck, ShieldOff, Heart, Github, FlaskConical, EyeOff, Eye, FileText, Server, Fingerprint, BookOpen } from 'lucide-react';
+import NextLink from 'next/link';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -125,6 +126,13 @@ export default function Home() {
             <span className="font-semibold">HumanQL</span>
           </div>
           <div className="flex items-center gap-3">
+            <NextLink
+              href="/guide"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors text-sm"
+            >
+              <BookOpen className="w-4 h-4" />
+              <span className="hidden sm:inline">{locale === 'ru' ? 'Гайд' : 'Guide'}</span>
+            </NextLink>
             <a
               href="https://github.com/manikosto/no-sql"
               target="_blank"
