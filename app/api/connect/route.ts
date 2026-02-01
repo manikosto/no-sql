@@ -3,17 +3,20 @@ import { createAdapter, detectDatabaseType, DatabaseType } from '@/lib/db-adapte
 
 export async function POST(request: NextRequest) {
   try {
-    const { connectionString, dbType: providedDbType } = await request.json();
+    const { connectionString, dbType: providedDbType, useEnv } = await request.json();
 
-    if (!connectionString) {
+    // Use DATABASE_URL from env if useEnv is true
+    const connStr = useEnv ? process.env.DATABASE_URL : connectionString;
+
+    if (!connStr) {
       return NextResponse.json(
-        { success: false, error: 'Connection string is required' },
+        { success: false, error: useEnv ? 'DATABASE_URL not configured' : 'Connection string is required' },
         { status: 400 }
       );
     }
 
     // Detect or use provided database type
-    const dbType: DatabaseType | null = providedDbType || detectDatabaseType(connectionString);
+    const dbType: DatabaseType | null = providedDbType || detectDatabaseType(connStr);
 
     if (!dbType) {
       return NextResponse.json(
@@ -22,7 +25,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const adapter = createAdapter(dbType, connectionString);
+    const adapter = createAdapter(dbType, connStr);
 
     try {
       await adapter.connect();
