@@ -47,6 +47,26 @@ Open http://localhost:3000
 | `LLM_MODEL` | Model for SQL generation | `gpt-4o` |
 | `LLM_MODEL_FAST` | Model for summaries | `gpt-4o-mini` |
 
+## Docker (Full Privacy Mode)
+
+Run everything locally with one command — no data leaves your machine:
+
+```bash
+docker-compose up
+```
+
+This starts:
+- HumanQL on http://localhost:3000
+- Ollama with llama3.1 on http://localhost:11434
+
+First run will download the model (~4GB). After that, pull the model manually:
+
+```bash
+docker exec -it humanql-ollama-1 ollama pull llama3.1
+```
+
+For GPU support (NVIDIA), uncomment the `deploy` section in `docker-compose.yml`.
+
 ## Using Local LLM (Ollama, LocalAI, etc.)
 
 You can use a local LLM instead of OpenAI for full privacy:
