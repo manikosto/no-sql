@@ -241,97 +241,92 @@ export default function Home() {
                 disabled={!connectionString}
               />
 
-              {/* Read-only mode toggle */}
+              {/* Security settings - compact row */}
               {connectionString && (
-                <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-secondary/30">
+                  <span className="text-xs text-muted-foreground">
+                    {locale === 'ru' ? 'Настройки' : 'Settings'}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    {/* Read-only toggle */}
                     {readOnlyMode ? (
-                      <ShieldCheck className="w-5 h-5 text-green-500" />
-                    ) : (
-                      <ShieldOff className="w-5 h-5 text-yellow-500" />
-                    )}
-                    <div>
-                      <p className="text-sm font-medium">
-                        {readOnlyMode
-                          ? (locale === 'ru' ? 'Режим только чтение' : 'Read-only mode')
-                          : (locale === 'ru' ? 'Режим записи включен' : 'Write mode enabled')}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {readOnlyMode
-                          ? (locale === 'ru' ? 'Разрешены только SELECT-запросы' : 'Only SELECT queries allowed')
-                          : (locale === 'ru' ? '⚠️ Изменения данных возможны — будьте осторожны' : '⚠️ Data changes possible — be careful')}
-                      </p>
-                    </div>
-                  </div>
-                  {readOnlyMode ? (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <button className="text-sm px-4 py-2 rounded-lg bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 transition-colors">
-                          {locale === 'ru' ? 'Отключить защиту' : 'Disable protection'}
-                        </button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent className="bg-card border-border">
-                        <AlertDialogHeader>
-                          <AlertDialogTitle className="flex items-center gap-2">
-                            <ShieldOff className="w-5 h-5 text-yellow-500" />
-                            {locale === 'ru' ? 'Отключить защиту?' : 'Disable protection?'}
-                          </AlertDialogTitle>
-                          <AlertDialogDescription className="text-muted-foreground">
-                            {locale === 'ru'
-                              ? 'Вы сможете выполнять INSERT, UPDATE и DELETE запросы. Это может привести к изменению или потере данных. Все риски несёте вы.'
-                              : 'You will be able to execute INSERT, UPDATE and DELETE queries. This may result in data modification or loss. You assume all risks.'}
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel className="bg-secondary hover:bg-secondary/80">
-                            {locale === 'ru' ? 'Отмена' : 'Cancel'}
-                          </AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => setReadOnlyMode(false)}
-                            className="bg-yellow-500 text-black hover:bg-yellow-600"
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button
+                            className="p-2 rounded-lg text-green-500 hover:bg-green-500/10 transition-colors"
+                            title={locale === 'ru' ? 'Только чтение (вкл)' : 'Read-only (on)'}
                           >
-                            {locale === 'ru' ? 'Я понимаю риски' : 'I understand the risks'}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  ) : (
-                    <button
-                      onClick={() => setReadOnlyMode(true)}
-                      className="text-sm px-4 py-2 rounded-lg bg-green-500/10 text-green-500 hover:bg-green-500/20 transition-colors"
-                    >
-                      {locale === 'ru' ? 'Включить защиту' : 'Enable protection'}
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Privacy mode toggle */}
-              {connectionString && (
-                <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30">
-                  <div className="flex items-center gap-3">
-                    {privacyMode ? (
-                      <EyeOff className="w-5 h-5 text-green-500" />
+                            <ShieldCheck className="w-4 h-4" />
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="bg-card border-border">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="flex items-center gap-2">
+                              <ShieldOff className="w-5 h-5 text-yellow-500" />
+                              {locale === 'ru' ? 'Отключить защиту?' : 'Disable protection?'}
+                            </AlertDialogTitle>
+                            <AlertDialogDescription className="text-muted-foreground">
+                              {locale === 'ru'
+                                ? 'Вы сможете выполнять INSERT, UPDATE и DELETE. Все риски несёте вы.'
+                                : 'You will be able to execute INSERT, UPDATE and DELETE. You assume all risks.'}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="bg-secondary hover:bg-secondary/80">
+                              {locale === 'ru' ? 'Отмена' : 'Cancel'}
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => setReadOnlyMode(false)}
+                              className="bg-yellow-500 text-black hover:bg-yellow-600"
+                            >
+                              {locale === 'ru' ? 'Отключить' : 'Disable'}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     ) : (
-                      <Eye className="w-5 h-5 text-muted-foreground" />
+                      <button
+                        onClick={() => setReadOnlyMode(true)}
+                        className="p-2 rounded-lg text-yellow-500 hover:bg-yellow-500/10 transition-colors"
+                        title={locale === 'ru' ? 'Режим записи (опасно!)' : 'Write mode (dangerous!)'}
+                      >
+                        <ShieldOff className="w-4 h-4" />
+                      </button>
                     )}
-                    <div>
-                      <p className="text-sm font-medium">
-                        {privacyMode
-                          ? (locale === 'ru' ? 'Режим приватности' : 'Privacy mode')
-                          : (locale === 'ru' ? 'Стандартный режим' : 'Standard mode')}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {privacyMode
-                          ? (locale === 'ru' ? 'В AI уходит только схема, данные не отправляются' : 'Only schema sent to AI, no data')
-                          : (locale === 'ru' ? 'Схема + 5 строк для саммари' : 'Schema + 5 rows for summary')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
+
+                    {/* Privacy toggle */}
+                    <button
+                      onClick={() => setPrivacyMode(!privacyMode)}
+                      className={`p-2 rounded-lg transition-colors ${
+                        privacyMode ? 'text-green-500 hover:bg-green-500/10' : 'text-muted-foreground hover:bg-secondary'
+                      }`}
+                      title={privacyMode
+                        ? (locale === 'ru' ? 'Приватность (вкл) — данные не уходят' : 'Privacy (on) — no data sent')
+                        : (locale === 'ru' ? 'Приватность (выкл)' : 'Privacy (off)')}
+                    >
+                      {privacyMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+
+                    {/* Anonymize toggle */}
+                    <button
+                      onClick={() => setAnonymizeMode(!anonymizeMode)}
+                      className={`p-2 rounded-lg transition-colors ${
+                        anonymizeMode ? 'text-green-500 hover:bg-green-500/10' : 'text-muted-foreground hover:bg-secondary'
+                      }`}
+                      title={anonymizeMode
+                        ? (locale === 'ru' ? 'Анонимизация (вкл) — users→table_1' : 'Anonymize (on) — users→table_1')
+                        : (locale === 'ru' ? 'Анонимизация (выкл)' : 'Anonymize (off)')}
+                    >
+                      <Fingerprint className="w-4 h-4" />
+                    </button>
+
+                    {/* Show prompt preview */}
                     <AlertDialog open={showPromptPreview} onOpenChange={setShowPromptPreview}>
                       <AlertDialogTrigger asChild>
-                        <button className="text-sm px-3 py-2 rounded-lg bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                        <button
+                          className="p-2 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                          title={locale === 'ru' ? 'Что уходит в AI' : 'What is sent to AI'}
+                        >
                           <FileText className="w-4 h-4" />
                         </button>
                       </AlertDialogTrigger>
@@ -341,43 +336,29 @@ export default function Home() {
                             <FileText className="w-5 h-5 text-primary" />
                             {locale === 'ru' ? 'Что отправляется в AI' : 'What is sent to AI'}
                           </AlertDialogTitle>
-                          <AlertDialogDescription className="text-muted-foreground">
-                            {locale === 'ru'
-                              ? 'Это данные, которые уходят в LLM для генерации SQL'
-                              : 'This data is sent to the LLM to generate SQL'}
-                          </AlertDialogDescription>
                         </AlertDialogHeader>
                         <div className="flex-1 overflow-auto">
                           <div className="space-y-4">
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wide">
-                                {locale === 'ru' ? 'Схема базы данных' : 'Database Schema'}
-                              </p>
-                              <pre className="p-3 rounded-lg bg-secondary/50 text-xs font-mono overflow-x-auto whitespace-pre-wrap max-h-60">
-                                {getPromptPreview()}
-                              </pre>
+                            <pre className="p-3 rounded-lg bg-secondary/50 text-xs font-mono overflow-x-auto whitespace-pre-wrap max-h-60">
+                              {getPromptPreview()}
+                            </pre>
+                            <div className="flex gap-2 flex-wrap">
+                              {privacyMode && (
+                                <span className="text-xs px-2 py-1 rounded bg-green-500/10 text-green-500">
+                                  {locale === 'ru' ? '✓ Данные не отправляются' : '✓ No data sent'}
+                                </span>
+                              )}
+                              {anonymizeMode && (
+                                <span className="text-xs px-2 py-1 rounded bg-green-500/10 text-green-500">
+                                  {locale === 'ru' ? '✓ Схема анонимизирована' : '✓ Schema anonymized'}
+                                </span>
+                              )}
+                              {!privacyMode && (
+                                <span className="text-xs px-2 py-1 rounded bg-yellow-500/10 text-yellow-500">
+                                  {locale === 'ru' ? '⚠ 5 строк для саммари' : '⚠ 5 rows for summary'}
+                                </span>
+                              )}
                             </div>
-                            {!privacyMode && (
-                              <div>
-                                <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wide">
-                                  {locale === 'ru' ? 'Для саммари (первые 5 строк результата)' : 'For summary (first 5 result rows)'}
-                                </p>
-                                <p className="text-xs text-yellow-500">
-                                  {locale === 'ru'
-                                    ? '⚠️ Включите режим приватности, чтобы не отправлять данные'
-                                    : '⚠️ Enable privacy mode to not send data'}
-                                </p>
-                              </div>
-                            )}
-                            {privacyMode && (
-                              <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                                <p className="text-xs text-green-500">
-                                  {locale === 'ru'
-                                    ? '✓ Режим приватности включен — данные из БД не отправляются'
-                                    : '✓ Privacy mode enabled — no database data is sent'}
-                                </p>
-                              </div>
-                            )}
                           </div>
                         </div>
                         <AlertDialogFooter>
@@ -387,52 +368,7 @@ export default function Home() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
-                    <button
-                      onClick={() => setPrivacyMode(!privacyMode)}
-                      className={`text-sm px-4 py-2 rounded-lg transition-colors ${
-                        privacyMode
-                          ? 'bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/20'
-                          : 'bg-green-500/10 text-green-500 hover:bg-green-500/20'
-                      }`}
-                    >
-                      {privacyMode
-                        ? (locale === 'ru' ? 'Выключить' : 'Disable')
-                        : (locale === 'ru' ? 'Включить' : 'Enable')}
-                    </button>
                   </div>
-                </div>
-              )}
-
-              {/* Anonymize mode toggle */}
-              {connectionString && (
-                <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30">
-                  <div className="flex items-center gap-3">
-                    <Fingerprint className={`w-5 h-5 ${anonymizeMode ? 'text-green-500' : 'text-muted-foreground'}`} />
-                    <div>
-                      <p className="text-sm font-medium">
-                        {anonymizeMode
-                          ? (locale === 'ru' ? 'Анонимизация схемы' : 'Schema anonymization')
-                          : (locale === 'ru' ? 'Реальные имена' : 'Real names')}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {anonymizeMode
-                          ? (locale === 'ru' ? 'users → table_1, email → col_3' : 'users → table_1, email → col_3')
-                          : (locale === 'ru' ? 'AI видит реальные названия таблиц' : 'AI sees real table names')}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setAnonymizeMode(!anonymizeMode)}
-                    className={`text-sm px-4 py-2 rounded-lg transition-colors ${
-                      anonymizeMode
-                        ? 'bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/20'
-                        : 'bg-green-500/10 text-green-500 hover:bg-green-500/20'
-                    }`}
-                  >
-                    {anonymizeMode
-                      ? (locale === 'ru' ? 'Выключить' : 'Disable')
-                      : (locale === 'ru' ? 'Включить' : 'Enable')}
-                  </button>
                 </div>
               )}
 
