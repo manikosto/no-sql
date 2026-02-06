@@ -10,6 +10,7 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { QueryHistoryPanel } from '@/components/query-history-panel';
 import { QuerySkeleton } from '@/components/loading-skeletons';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { DataVisualization } from '@/components/data-visualization';
 import { useLocale } from '@/lib/locale-context';
 import { DatabaseSchema, QueryResult } from '@/lib/types';
 import { DatabaseType } from '@/lib/db-adapter';
@@ -505,6 +506,11 @@ export default function Home() {
                       columns={queryResult.columns}
                     />
                   </div>
+
+                  <DataVisualization
+                    data={queryResult.results}
+                    columns={queryResult.columns}
+                  />
 
                   <ResultsTable
                     data={queryResult.results}
