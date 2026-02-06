@@ -28,7 +28,7 @@ export interface QueryResult {
   sql: string;
   results: Record<string, unknown>[];
   columns: string[];
-  summary: string;
+  summary: string | null;
 }
 
 export interface ConnectionResponse {

@@ -18,7 +18,7 @@ import {
 import { useLocale } from '@/lib/locale-context';
 import { DatabaseSchema } from '@/lib/types';
 import { DatabaseType } from '@/lib/db-adapter';
-import { Info, Lock, Server, Brain, Database, Play } from 'lucide-react';
+import { Info, Lock, Server, Brain, Play } from 'lucide-react';
 
 interface ConnectionFormProps {
   onConnect: (connectionString: string, schema: DatabaseSchema, isReadOnly: boolean, dbType: DatabaseType) => void;
@@ -42,7 +42,7 @@ export function ConnectionForm({ onConnect, isConnected, schema, isReadOnly }: C
     fetch('/api/config')
       .then(res => res.json())
       .then(data => setHasEnvConnection(data.hasEnvConnection || false))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const handleConnect = async (connStr?: string) => {

@@ -159,14 +159,13 @@ export async function fixSQL(
   originalQuestion: string,
   failedSQL: string,
   errorMessage: string,
-  schema: DatabaseSchema,
-  dbType: DatabaseType
+  schema: DatabaseSchema
 ): Promise<string> {
   const compactSchema = buildCompactSchema(schema);
 
   // Extract which column was invalid from error message
   const columnMatch = errorMessage.match(/column "([^"]+)" does not exist/i) ||
-                      errorMessage.match(/Unknown column '([^']+)'/i);
+    errorMessage.match(/Unknown column '([^']+)'/i);
   const invalidColumn = columnMatch ? columnMatch[1] : null;
 
   // Find which table might be relevant based on the failed SQL

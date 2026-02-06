@@ -19,6 +19,20 @@ export function QueryInput({ onSubmit, loading, disabled }: QueryInputProps) {
     onSubmit(question.trim());
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      // Ctrl/Cmd + Enter to submit
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        handleSubmit();
+      } else {
+        // Regular Enter also submits
+        e.preventDefault();
+        handleSubmit();
+      }
+    }
+  };
+
   return (
     <div className="flex gap-3">
       <input
@@ -26,12 +40,7 @@ export function QueryInput({ onSubmit, loading, disabled }: QueryInputProps) {
         placeholder={disabled ? t('connectFirst') : t('askPlaceholder')}
         value={question}
         onChange={(e) => setQuestion(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            handleSubmit();
-          }
-        }}
+        onKeyDown={handleKeyDown}
         disabled={disabled}
         className="flex-1 h-12 px-4 rounded-xl bg-secondary/50 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed"
       />

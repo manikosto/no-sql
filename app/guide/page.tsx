@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   Lightbulb,
-  Code,
   Table,
   Search,
   Filter,
@@ -434,7 +433,7 @@ export default function GuidePage() {
                 <div className="space-y-3">
                   {cat.examples.map((ex, j) => (
                     <div key={j} className="p-4 rounded-xl bg-background border border-border/50">
-                      <p className="font-medium mb-2">"{ex.q}"</p>
+                      <p className="font-medium mb-2">&quot;{ex.q}&quot;</p>
                       <code className="text-sm text-muted-foreground font-mono">{ex.sql}</code>
                     </div>
                   ))}

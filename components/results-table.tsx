@@ -50,6 +50,7 @@ export function ResultsTable({ data, columns }: ResultsTableProps) {
     [columns]
   );
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table's useReactTable is safe to use
   const table = useReactTable({
     data,
     columns: tableColumns,
@@ -77,22 +78,20 @@ export function ResultsTable({ data, columns }: ResultsTableProps) {
       <div className="flex items-center gap-2">
         <button
           onClick={() => setViewMode('pretty')}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-            viewMode === 'pretty'
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${viewMode === 'pretty'
               ? 'bg-primary/20 text-primary'
               : 'bg-secondary/30 text-muted-foreground hover:bg-secondary/50'
-          }`}
+            }`}
         >
           <Table2 className="w-4 h-4" />
           {locale === 'ru' ? 'Таблица' : 'Table'}
         </button>
         <button
           onClick={() => setViewMode('raw')}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-            viewMode === 'raw'
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${viewMode === 'raw'
               ? 'bg-primary/20 text-primary'
               : 'bg-secondary/30 text-muted-foreground hover:bg-secondary/50'
-          }`}
+            }`}
         >
           <Code2 className="w-4 h-4" />
           JSON
@@ -110,9 +109,8 @@ export function ResultsTable({ data, columns }: ResultsTableProps) {
                       headerGroup.headers.map((header) => (
                         <th
                           key={header.id}
-                          className={`px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap ${
-                            header.column.getCanSort() ? 'cursor-pointer hover:bg-secondary/50' : ''
-                          } transition-colors`}
+                          className={`px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap ${header.column.getCanSort() ? 'cursor-pointer hover:bg-secondary/50' : ''
+                            } transition-colors`}
                           onClick={header.column.getToggleSortingHandler()}
                         >
                           <div className="flex items-center gap-1">

@@ -284,8 +284,7 @@ export async function POST(request: NextRequest) {
                 question,
                 finalSQL,
                 lastError.message,
-                schemaForAI,
-                dbType as DatabaseType
+                schemaForAI
               );
 
               // Deanonymize if needed
@@ -311,7 +310,7 @@ export async function POST(request: NextRequest) {
           throw lastError;
         }
       } catch (error) {
-        await adapter.disconnect().catch(() => {});
+        await adapter.disconnect().catch(() => { });
         throw error;
       }
     }

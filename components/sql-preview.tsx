@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useLocale } from '@/lib/locale-context';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface SQLPreviewProps {
   sql: string | null;
@@ -36,9 +38,21 @@ export function SQLPreview({ sql }: SQLPreviewProps) {
         </button>
       </div>
       <CollapsibleContent>
-        <pre className="mt-3 p-4 rounded-xl bg-secondary/30 text-sm font-mono overflow-x-auto">
-          <code className="text-primary">{sql}</code>
-        </pre>
+        <div className="mt-3 rounded-xl overflow-hidden border border-border/30">
+          <SyntaxHighlighter
+            language="sql"
+            style={oneDark}
+            customStyle={{
+              margin: 0,
+              padding: '1rem',
+              fontSize: '0.875rem',
+              background: 'hsl(var(--secondary) / 0.3)',
+            }}
+            wrapLongLines
+          >
+            {sql}
+          </SyntaxHighlighter>
+        </div>
       </CollapsibleContent>
     </Collapsible>
   );

@@ -7,10 +7,15 @@ import { SQLPreview } from '@/components/sql-preview';
 import { ResultsTable } from '@/components/results-table';
 import { ExportButton } from '@/components/export-button';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { QueryHistoryPanel } from '@/components/query-history-panel';
+import { QuerySkeleton } from '@/components/loading-skeletons';
+import { ErrorBoundary } from '@/components/error-boundary';
 import { useLocale } from '@/lib/locale-context';
 import { DatabaseSchema, QueryResult } from '@/lib/types';
 import { DatabaseType } from '@/lib/db-adapter';
-import { Database, Link, MessageSquare, BarChart3, Plug, Sparkles, ShieldCheck, ShieldOff, Heart, Github, FlaskConical, EyeOff, Eye, FileText, Server, Fingerprint, BookOpen } from 'lucide-react';
+import { queryHistory } from '@/lib/query-history';
+import { queryCache } from '@/lib/query-cache';
+import { Database, Link, MessageSquare, BarChart3, Plug, Sparkles, ShieldCheck, ShieldOff, Heart, Github, FlaskConical, EyeOff, Eye, FileText, Server, Fingerprint, BookOpen, History, Clock, Zap } from 'lucide-react';
 import NextLink from 'next/link';
 import {
   AlertDialog,
@@ -38,13 +43,16 @@ export default function Home() {
   const [anonymizeMode, setAnonymizeMode] = useState(false);
   const [showPromptPreview, setShowPromptPreview] = useState(false);
   const [isLocalLLM, setIsLocalLLM] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [executionTime, setExecutionTime] = useState<number | null>(null);
+  const [fromCache, setFromCache] = useState(false);
 
   // Check if using local LLM
   useEffect(() => {
     fetch('/api/config')
       .then(res => res.json())
       .then(data => setIsLocalLLM(data.isLocalLLM))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Generate preview of what gets sent to AI
@@ -53,12 +61,12 @@ export default function Home() {
 
     const schemaToShow = anonymizeMode
       ? schema.tables.map((table, ti) => ({
-          name: `table_${ti + 1}`,
-          columns: table.columns.map((col, ci) => ({
-            name: `col_${ci + 1}`,
-            type: col.type,
-          })),
-        }))
+        name: `table_${ti + 1}`,
+        columns: table.columns.map((col, ci) => ({
+          name: `col_${ci + 1}`,
+          type: col.type,
+        })),
+      }))
       : schema.tables;
 
     const schemaDescription = schemaToShow
@@ -86,6 +94,30 @@ export default function Home() {
 
     setLoading(true);
     setError(null);
+    setFromCache(false);
+    const startTime = Date.now();
+
+    // Check cache first
+    const cached = queryCache.get(
+      connectionString,
+      question,
+      JSON.stringify(schema),
+      readOnlyMode
+    );
+
+    if (cached) {
+      // Use cached result
+      setQueryResult({
+        sql: cached.sql,
+        results: cached.results,
+        columns: cached.columns,
+        summary: cached.summary,
+      });
+      setExecutionTime(Date.now() - startTime);
+      setFromCache(true);
+      setLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch('/api/query', {
@@ -101,18 +133,59 @@ export default function Home() {
         return;
       }
 
-      setQueryResult({
+      const execTime = Date.now() - startTime;
+      setExecutionTime(execTime);
+
+      const result = {
         sql: data.sql,
         results: data.results,
         columns: data.columns,
         summary: data.summary,
-      });
+      };
+
+      setQueryResult(result);
+
+      // Save to cache
+      queryCache.set(
+        connectionString,
+        question,
+        JSON.stringify(schema),
+        readOnlyMode,
+        result
+      );
+
+      // Save to history
+      queryHistory.addQuery(
+        question,
+        data.sql,
+        data.results.length,
+        execTime
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Query failed');
     } finally {
       setLoading(false);
     }
   };
+
+  const handleSelectFromHistory = (question: string) => {
+    handleQuery(question);
+    setShowHistory(false);
+  };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + H: Toggle history
+      if ((e.ctrlKey || e.metaKey) && e.key === 'h') {
+        e.preventDefault();
+        setShowHistory(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -126,6 +199,14 @@ export default function Home() {
             <span className="font-semibold">HumanQL</span>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors text-sm"
+              title={locale === 'ru' ? 'История (Ctrl+H)' : 'History (Ctrl+H)'}
+            >
+              <History className="w-4 h-4" />
+              <span className="hidden sm:inline">{locale === 'ru' ? 'История' : 'History'}</span>
+            </button>
             <NextLink
               href="/guide"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors text-sm"
@@ -235,19 +316,23 @@ export default function Home() {
             {/* App Content */}
             <div className="p-6 space-y-6">
               {/* Connection */}
-              <ConnectionForm
-                onConnect={handleConnect}
-                isConnected={!!connectionString}
-                schema={schema}
-                isReadOnly={isReadOnly}
-              />
+              <ErrorBoundary>
+                <ConnectionForm
+                  onConnect={handleConnect}
+                  isConnected={!!connectionString}
+                  schema={schema}
+                  isReadOnly={isReadOnly}
+                />
+              </ErrorBoundary>
 
               {/* Query Input */}
-              <QueryInput
-                onSubmit={handleQuery}
-                loading={loading}
-                disabled={!connectionString}
-              />
+              <ErrorBoundary>
+                <QueryInput
+                  onSubmit={handleQuery}
+                  loading={loading}
+                  disabled={!connectionString}
+                />
+              </ErrorBoundary>
 
               {/* Security settings - compact row */}
               {connectionString && (
@@ -305,9 +390,8 @@ export default function Home() {
                     {/* Privacy toggle */}
                     <button
                       onClick={() => setPrivacyMode(!privacyMode)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        privacyMode ? 'text-green-500 hover:bg-green-500/10' : 'text-muted-foreground hover:bg-secondary'
-                      }`}
+                      className={`p-2 rounded-lg transition-colors ${privacyMode ? 'text-green-500 hover:bg-green-500/10' : 'text-muted-foreground hover:bg-secondary'
+                        }`}
                       title={privacyMode
                         ? (locale === 'ru' ? 'Приватность (вкл) — данные не уходят' : 'Privacy (on) — no data sent')
                         : (locale === 'ru' ? 'Приватность (выкл)' : 'Privacy (off)')}
@@ -318,9 +402,8 @@ export default function Home() {
                     {/* Anonymize toggle */}
                     <button
                       onClick={() => setAnonymizeMode(!anonymizeMode)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        anonymizeMode ? 'text-green-500 hover:bg-green-500/10' : 'text-muted-foreground hover:bg-secondary'
-                      }`}
+                      className={`p-2 rounded-lg transition-colors ${anonymizeMode ? 'text-green-500 hover:bg-green-500/10' : 'text-muted-foreground hover:bg-secondary'
+                        }`}
                       title={anonymizeMode
                         ? (locale === 'ru' ? 'Анонимизация (вкл) — users→table_1' : 'Anonymize (on) — users→table_1')
                         : (locale === 'ru' ? 'Анонимизация (выкл)' : 'Anonymize (off)')}
@@ -387,8 +470,11 @@ export default function Home() {
                 </div>
               )}
 
+              {/* Loading skeleton */}
+              {loading && <QuerySkeleton />}
+
               {/* Results */}
-              {queryResult && (
+              {queryResult && !loading && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                   {queryResult.summary && (
                     <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
@@ -399,9 +485,21 @@ export default function Home() {
                   <SQLPreview sql={queryResult.sql} />
 
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      {queryResult.results.length} {t('rows')}
-                    </span>
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <span>{queryResult.results.length} {t('rows')}</span>
+                      {executionTime && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" />
+                          {executionTime}ms
+                        </span>
+                      )}
+                      {fromCache && (
+                        <span className="flex items-center gap-1 text-green-500">
+                          <Zap className="w-3.5 h-3.5" />
+                          {locale === 'ru' ? 'Из кэша' : 'Cached'}
+                        </span>
+                      )}
+                    </div>
                     <ExportButton
                       data={queryResult.results}
                       columns={queryResult.columns}
@@ -536,6 +634,13 @@ export default function Home() {
           </p>
         </div>
       </footer>
+
+      {/* Query History Panel */}
+      <QueryHistoryPanel
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+        onSelectQuery={handleSelectFromHistory}
+      />
     </div>
   );
 }
